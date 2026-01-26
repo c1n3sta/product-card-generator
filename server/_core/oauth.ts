@@ -44,10 +44,43 @@ export function registerOAuthRoutes(app: Express) {
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
-      res.redirect(302, "/");
+      // Send HTML with JavaScript redirect to ensure cookie is set before navigation
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Redirecting...</title>
+        </head>
+        <body>
+          <script>
+            // Wait a tick to ensure cookie is set, then redirect
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 100);
+          </script>
+        </body>
+        </html>
+      `);
     } catch (error) {
       console.error("[OAuth] Callback failed", error);
-      res.status(500).json({ error: "OAuth callback failed" });
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Authentication Error</title>
+        </head>
+        <body>
+          <h1>Authentication Error</h1>
+          <p>Failed to authenticate. Please try again.</p>
+          <a href="/">Back to Home</a>
+          <script>
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 3000);
+          </script>
+        </body>
+        </html>
+      `);
     }
   });
 }
