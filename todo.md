@@ -86,3 +86,20 @@
 - [x] Fix OAuth authentication redirect after account selection
 - [x] Verify session cookie is properly set after login
 - [x] Test redirect to home page after successful authentication
+
+
+## Phase 14: Progress Bar & Real-time Tracking
+- [ ] Create ProgressBar component with step indicators
+- [ ] Implement progress polling mechanism
+- [ ] Update bulk processing to emit progress events
+- [ ] Display step-by-step status (data extraction, background removal, generation)
+- [ ] Show estimated time remaining
+- [ ] Add cancel bulk generation option
+
+
+## Phase 15: Critical Bug Fixes
+- [x] Fix bulk generation API not starting processing
+- [x] Fix JSON parsing errors in API responses
+- [x] Fix TypeScript errors in progress tracking router
+- [x] Verify notification system works correctly
+- [x] Test end-to-end bulk generation workflow
