@@ -98,6 +98,10 @@
   function formatArg(arg) {
     try {
       if (arg instanceof Error) {
+        // Suppress Amplitude Logger errors
+        if (arg.message && arg.message.includes('Amplitude')) {
+          return null;
+        }
         return { type: "Error", message: arg.message, stack: arg.stack };
       }
       if (typeof arg === "object") return sanitizeValue(arg);

@@ -133,6 +133,8 @@ async function processProduct(
     });
 
     let backgroundImageUrl = "";
+    let productImageWithoutBg = selectedImageUrl;
+    
     if (selectedImageUrl) {
       const bgRemovalLog = await createProcessingLog({
         jobId,
@@ -143,6 +145,8 @@ async function processProduct(
       });
 
       const removed = await removeBackground(selectedImageUrl);
+      productImageWithoutBg = removed.imageUrl; // Use the background-removed image
+      
       await updateProcessingLog(bgRemovalLog.id, {
         status: "completed",
         message: "Background removed successfully",
@@ -183,11 +187,11 @@ async function processProduct(
       processingJobId: jobId,
     });
 
-    if (selectedImageUrl) {
+    if (productImageWithoutBg) {
       await createCardLayer({
         cardId: card.id,
         layerType: "product_image",
-        imageUrl: selectedImageUrl,
+        imageUrl: productImageWithoutBg,
         status: "completed",
       });
     }
