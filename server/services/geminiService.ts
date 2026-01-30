@@ -1,5 +1,6 @@
 /**
  * Gemini API integration for intelligent product data processing
+ * Uses Manus Forge API for reliable, rate-limited access
  */
 
 import { invokeLLM } from "../_core/llm";
