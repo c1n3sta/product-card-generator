@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { CSVPreview, type CSVRow } from "@/components/CSVPreview";
 
 export default function Products() {
   const [, setLocation] = useLocation();
@@ -44,6 +45,9 @@ export default function Products() {
   const [isImporting, setIsImporting] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [showCSVPreview, setShowCSVPreview] = useState(false);
+  const [csvPreviewData, setCSVPreviewData] = useState<CSVRow[]>([]);
+  const [csvContent, setCSVContent] = useState("");
   const [accentColor, setAccentColor] = useState("#3B82F6");
   const [newProduct, setNewProduct] = useState({
     sku: "",
@@ -56,22 +60,32 @@ export default function Products() {
   const { data: products, isLoading } = trpc.products.list.useQuery();
   const { data: csvTemplate } = trpc.products.getCSVTemplate.useQuery();
 
-  const importCSV = trpc.products.importCSV.useMutation({
+  const previewCSV = trpc.products.previewCSV.useMutation({
     onSuccess: (result) => {
       if (result.success) {
-        toast.success(`Imported ${result.imported} products successfully`);
-        if (result.errors.length > 0) {
-          toast.warning(`${result.errors.length} rows had errors`);
-        }
-        utils.products.list.invalidate();
+        setCSVPreviewData(result.rows);
+        setShowCSVPreview(true);
       } else {
-        toast.error("Import failed: " + result.errors.join(", "));
+        toast.error(result.error || "Failed to parse CSV");
       }
       setIsImporting(false);
     },
     onError: (error) => {
-      toast.error("Import failed: " + error.message);
+      toast.error("Failed to preview CSV: " + error.message);
       setIsImporting(false);
+    },
+  });
+
+  const importCSVRows = trpc.products.importCSVRows.useMutation({
+    onSuccess: (result) => {
+      toast.success(`Imported ${result.imported} products successfully`);
+      utils.products.list.invalidate();
+      setShowCSVPreview(false);
+      setCSVPreviewData([]);
+      setCSVContent("");
+    },
+    onError: (error) => {
+      toast.error("Import failed: " + error.message);
     },
   });
 
@@ -118,7 +132,8 @@ export default function Products() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
-      importCSV.mutate({ csvContent: content });
+      setCSVContent(content);
+      previewCSV.mutate({ csvContent: content });
     };
     reader.onerror = () => {
       toast.error("Failed to read file");
@@ -130,6 +145,19 @@ export default function Products() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const handleConfirmImport = () => {
+    const validRows = csvPreviewData.filter((row) => row.errors.length === 0);
+    const rowsToImport = validRows.map((row) => ({
+      sku: row.sku,
+      name: row.name,
+      description: row.description,
+      category: row.category,
+      price: row.price,
+    }));
+
+    importCSVRows.mutate({ rows: rowsToImport });
   };
 
   const downloadTemplate = () => {
@@ -164,6 +192,22 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
+      {/* CSV Preview Dialog */}
+      <Dialog open={showCSVPreview} onOpenChange={setShowCSVPreview}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-auto">
+          <CSVPreview
+            rows={csvPreviewData}
+            onConfirm={handleConfirmImport}
+            onCancel={() => {
+              setShowCSVPreview(false);
+              setCSVPreviewData([]);
+              setCSVContent("");
+            }}
+            isLoading={importCSVRows.isPending}
+          />
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Products</h1>
@@ -202,74 +246,69 @@ export default function Products() {
               <DialogHeader>
                 <DialogTitle>Add New Product</DialogTitle>
                 <DialogDescription>
-                  Enter the product details manually.
+                  Enter product details manually or import from CSV.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="sku" className="text-right">
-                    SKU
-                  </Label>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sku">SKU (Optional)</Label>
                   <Input
                     id="sku"
                     value={newProduct.sku}
                     onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
-                    className="col-span-3"
+                    placeholder="PROD-001"
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Name *
-                  </Label>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Product Name *</Label>
                   <Input
                     id="name"
                     value={newProduct.name}
                     onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                    className="col-span-3"
+                    placeholder="Premium Wireless Headphones"
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="description" className="text-right">
-                    Description
-                  </Label>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
                     value={newProduct.description}
                     onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                    className="col-span-3"
+                    placeholder="High-quality wireless headphones with noise cancellation..."
+                    rows={3}
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="category" className="text-right">
-                    Category
-                  </Label>
-                  <Input
-                    id="category"
-                    value={newProduct.category}
-                    onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="price" className="text-right">
-                    Price
-                  </Label>
-                  <Input
-                    id="price"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                    className="col-span-3"
-                    placeholder="0.00"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Input
+                      id="category"
+                      value={newProduct.category}
+                      onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                      placeholder="Electronics"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Price</Label>
+                    <Input
+                      id="price"
+                      value={newProduct.price}
+                      onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                      placeholder="$299.99"
+                    />
+                  </div>
                 </div>
               </div>
               <DialogFooter>
+                <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+                  Cancel
+                </Button>
                 <Button
                   onClick={() => createProduct.mutate(newProduct)}
                   disabled={!newProduct.name || createProduct.isPending}
                 >
                   {createProduct.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Add Product
+                  Create Product
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -277,97 +316,93 @@ export default function Products() {
         </div>
       </div>
 
-      {/* Selection Actions */}
+      {/* Bulk Actions */}
       {selectedProducts.length > 0 && (
-        <Card className="border-primary/50 bg-primary/5">
+        <Card>
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">
-                {selectedProducts.length} product{selectedProducts.length > 1 ? "s" : ""} selected
-              </span>
+              <div className="text-sm text-muted-foreground">
+                {selectedProducts.length} product(s) selected
+              </div>
               <div className="flex gap-2">
                 <Button
-                  variant="destructive"
+                  variant="outline"
                   size="sm"
                   onClick={() => bulkDelete.mutate({ ids: selectedProducts })}
                   disabled={bulkDelete.isPending}
                 >
-                  {bulkDelete.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="mr-2 h-4 w-4" />
-                  )}
-                  Delete
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected
                 </Button>
-                <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" disabled={selectedPendingProducts.length === 0}>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate Cards ({selectedPendingProducts.length})
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Generate Product Cards</DialogTitle>
-                      <DialogDescription>
-                        Configure the card generation settings for {selectedPendingProducts.length} products.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="accentColor" className="text-right">
-                          Accent Color
-                        </Label>
-                        <div className="col-span-3 flex items-center gap-2">
-                          <Input
-                            id="accentColor"
-                            type="color"
-                            value={accentColor}
-                            onChange={(e) => setAccentColor(e.target.value)}
-                            className="w-12 h-10 p-1 cursor-pointer"
-                          />
-                          <Input
-                            value={accentColor}
-                            onChange={(e) => setAccentColor(e.target.value)}
-                            className="flex-1"
-                            placeholder="#3B82F6"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        onClick={() =>
-                          startGeneration.mutate({
-                            productIds: selectedPendingProducts,
-                            accentColor,
-                          })
-                        }
-                        disabled={startGeneration.isPending}
-                      >
-                        {startGeneration.isPending && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        Start Generation
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                {selectedPendingProducts.length > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={() => setShowGenerateDialog(true)}
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate Cards ({selectedPendingProducts.length})
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
+      {/* Generate Dialog */}
+      <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate Product Cards</DialogTitle>
+            <DialogDescription>
+              Start AI-powered card generation for {selectedPendingProducts.length} selected product(s).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="accentColor">Accent Color</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="accentColor"
+                  type="color"
+                  value={accentColor}
+                  onChange={(e) => setAccentColor(e.target.value)}
+                  className="w-20 h-10"
+                />
+                <Input
+                  value={accentColor}
+                  onChange={(e) => setAccentColor(e.target.value)}
+                  placeholder="#3B82F6"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGenerateDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                startGeneration.mutate({
+                  productIds: selectedPendingProducts,
+                  accentColor,
+                })
+              }
+              disabled={startGeneration.isPending}
+            >
+              {startGeneration.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Start Generation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Products Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Product Catalog
-          </CardTitle>
+          <CardTitle>Product Catalog</CardTitle>
           <CardDescription>
-            {products?.length ?? 0} products in your catalog
+            {products?.length || 0} product(s) in your catalog
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -375,73 +410,75 @@ export default function Products() {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : products?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium">No products yet</h3>
-              <p className="text-muted-foreground mt-1 mb-4">
-                Import a CSV file or add products manually to get started.
+          ) : products && products.length > 0 ? (
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={selectedProducts.length === products.length}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {products.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedProducts.includes(product.id)}
+                          onCheckedChange={() => toggleSelect(product.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{product.sku || "-"}</TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>{product.category || "-"}</TableCell>
+                      <TableCell>{product.price || "-"}</TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            product.status === "completed"
+                              ? "bg-green-100 text-green-800"
+                              : product.status === "processing"
+                              ? "bg-blue-100 text-blue-800"
+                              : product.status === "failed"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {product.status}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-semibold">No products yet</h3>
+              <p className="text-sm text-muted-foreground mt-2">
+                Get started by importing products from CSV or adding them manually.
               </p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <div className="mt-6 flex gap-2 justify-center">
+                <Button variant="outline" onClick={downloadTemplate}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Template
+                </Button>
+                <Button onClick={() => fileInputRef.current?.click()}>
                   <Upload className="mr-2 h-4 w-4" />
                   Import CSV
                 </Button>
-                <Button onClick={() => setShowAddDialog(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Product
-                </Button>
               </div>
             </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={selectedProducts.length === products?.length}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products?.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedProducts.includes(product.id)}
-                        onCheckedChange={() => toggleSelect(product.id)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{product.sku || "-"}</TableCell>
-                    <TableCell className="font-medium max-w-xs truncate">{product.name}</TableCell>
-                    <TableCell>{product.category || "-"}</TableCell>
-                    <TableCell>{product.price ? `$${product.price}` : "-"}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${
-                          product.status === "completed"
-                            ? "bg-green-100 text-green-700"
-                            : product.status === "processing"
-                            ? "bg-blue-100 text-blue-700"
-                            : product.status === "failed"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {product.status}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           )}
         </CardContent>
       </Card>

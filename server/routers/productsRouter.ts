@@ -9,6 +9,7 @@ import {
   deleteProduct,
 } from "../db";
 import { parseCSV, generateCSVTemplate } from "../utils/csvParser";
+import { parseCSVWithValidation } from "../utils/csvParserWithValidation";
 
 export const productsRouter = router({
   // List all products for the current user
@@ -130,6 +131,64 @@ export const productsRouter = router({
   getCSVTemplate: protectedProcedure.query(() => {
     return generateCSVTemplate();
   }),
+
+  // Preview CSV before import
+  previewCSV: protectedProcedure
+    .input(z.object({ csvContent: z.string() }))
+    .mutation(async ({ input }) => {
+      try {
+        const result = parseCSVWithValidation(input.csvContent);
+        return {
+          success: true,
+          rows: result.rows,
+          validCount: result.validCount,
+          invalidCount: result.invalidCount,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Failed to parse CSV",
+          rows: [],
+          validCount: 0,
+          invalidCount: 0,
+        };
+      }
+    }),
+
+  // Import selected rows from CSV
+  importCSVRows: protectedProcedure
+    .input(
+      z.object({
+        rows: z.array(
+          z.object({
+            sku: z.string().optional(),
+            name: z.string(),
+            description: z.string().optional(),
+            category: z.string().optional(),
+            price: z.string().optional(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const productsToCreate = input.rows.map((row) => ({
+        userId: ctx.user.id,
+        sku: row.sku || null,
+        name: row.name,
+        description: row.description || null,
+        category: row.category || null,
+        price: row.price || null,
+        originalImageUrl: null,
+        status: "pending" as const,
+      }));
+
+      const created = await createProducts(productsToCreate);
+
+      return {
+        success: true,
+        imported: created.length,
+      };
+    }),
 
   // Bulk delete products
   bulkDelete: protectedProcedure

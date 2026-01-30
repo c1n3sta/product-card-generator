@@ -32,3 +32,13 @@
 
 ## Bugs
 - [x] Fix database error in CSV import: "Failed query: insert into `products`" - missing column or data type mismatch
+
+## New Features & Improvements
+- [x] CSV preview step with validation before import
+- [x] Russian marketplace templates (Wildberries, Ozon, Yandex Market) with proper size/aspect ratio/resolution
+- [ ] Fix background removal integration with Pixelcut API
+- [ ] Fix AI background generation (currently showing only accent color)
+- [ ] Implement proper composition rules for card layouts (golden ratio, rule of thirds, proper scaling)
+- [ ] Redesign card editor as canvas-style interface with toolbars
+- [ ] Add regeneration controls for each layer/step in the editor
+- [ ] Add visual indicators for composition guidelines in editor
