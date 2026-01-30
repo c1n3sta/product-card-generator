@@ -24,6 +24,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Upload,
   Plus,
   Trash2,
@@ -49,6 +56,7 @@ export default function Products() {
   const [csvPreviewData, setCSVPreviewData] = useState<CSVRow[]>([]);
   const [csvContent, setCSVContent] = useState("");
   const [accentColor, setAccentColor] = useState("#3B82F6");
+  const [selectedMarketplace, setSelectedMarketplace] = useState("custom");
   const [newProduct, setNewProduct] = useState({
     sku: "",
     name: "",
@@ -360,6 +368,24 @@ export default function Products() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label htmlFor="marketplace">Marketplace Template</Label>
+              <Select value={selectedMarketplace} onValueChange={setSelectedMarketplace}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select marketplace" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">Custom (Universal)</SelectItem>
+                  <SelectItem value="wildberries">Wildberries (900×1200px)</SelectItem>
+                  <SelectItem value="ozon">Ozon (1200×1200px)</SelectItem>
+                  <SelectItem value="yandex_market">Yandex Market (1000×1000px)</SelectItem>
+                  <SelectItem value="avito">Avito (800×600px)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Choose a marketplace to apply platform-specific composition rules and dimensions
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="accentColor">Accent Color</Label>
               <div className="flex gap-2">
                 <Input
@@ -386,6 +412,7 @@ export default function Products() {
                 startGeneration.mutate({
                   productIds: selectedPendingProducts,
                   accentColor,
+                  targetMarketplace: selectedMarketplace,
                 })
               }
               disabled={startGeneration.isPending}

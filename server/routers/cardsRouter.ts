@@ -13,6 +13,8 @@ import {
   deleteCardLayer,
   getProductById,
 } from "../db";
+import { extractProductData } from "../services/geminiService";
+import { generateBackground, removeBackground } from "../services/pixelcutService";
 
 export const cardsRouter = router({
   // List all cards for the current user
@@ -205,6 +207,69 @@ export const cardsRouter = router({
         }
 
         await deleteCardLayer(input.id);
+        return { success: true };
+      }),
+
+    // Regenerate a layer
+    regenerate: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          cardId: z.number(),
+          layerType: z.enum(["background", "product_image", "text_title", "text_description"]),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const card = await getCardById(input.cardId);
+        if (!card || card.userId !== ctx.user.id) {
+          throw new Error("Card not found");
+        }
+
+        const product = await getProductById(card.productId);
+        if (!product) {
+          throw new Error("Product not found");
+        }
+
+        // Regenerate based on layer type
+        switch (input.layerType) {
+          case "background": {
+            const backgroundPrompt = card.backgroundPrompt || "Professional product photography background";
+            const generated = await generateBackground("", backgroundPrompt);
+            if (generated.imageUrl) {
+              await updateCardLayer(input.id, { imageUrl: generated.imageUrl });
+            }
+            break;
+          }
+
+          case "product_image": {
+            if (product.originalImageUrl) {
+              const removed = await removeBackground(product.originalImageUrl);
+              await updateCardLayer(input.id, { imageUrl: removed.imageUrl });
+            }
+            break;
+          }
+
+          case "text_title": {
+            const extraction = await extractProductData(
+              product.name,
+              product.description || undefined,
+              product.category || undefined
+            );
+            await updateCardLayer(input.id, { textContent: extraction.title });
+            break;
+          }
+
+          case "text_description": {
+            const extraction = await extractProductData(
+              product.name,
+              product.description || undefined,
+              product.category || undefined
+            );
+            await updateCardLayer(input.id, { textContent: extraction.marketingCopy });
+            break;
+          }
+        }
+
         return { success: true };
       }),
   }),

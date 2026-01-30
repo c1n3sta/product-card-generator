@@ -18,6 +18,8 @@ import { removeBackground, generateBackground, validateImageUrl } from "./pixelc
 import { notifyOwner } from "../_core/notification";
 import { storagePut } from "../storage";
 import { nanoid } from "nanoid";
+import { generateCardLayout, calculateOptimalFontSize } from "../../shared/compositionRules";
+import { MARKETPLACE_TEMPLATES } from "../../shared/marketplaceTemplates";
 
 export interface BulkProcessingOptions {
   userId: number;
@@ -238,7 +240,20 @@ async function processProduct(
       processingJobId: jobId,
     });
 
-    // Create layers
+    // Get marketplace template dimensions
+    const template = MARKETPLACE_TEMPLATES[targetMarketplace || "custom"] || MARKETPLACE_TEMPLATES.custom;
+    const canvasWidth = template.width;
+    const canvasHeight = template.height;
+
+    // Generate optimal layout using composition rules
+    const safeZonePercent = (template.guidelines.textSafeZone.left / canvasWidth) * 100;
+    const layout = generateCardLayout(canvasWidth, canvasHeight, targetMarketplace || "custom", safeZonePercent);
+
+    // Calculate optimal font sizes
+    const titleFontSize = calculateOptimalFontSize(extraction.title.length, layout.title.width, layout.title.height, true);
+    const descriptionFontSize = calculateOptimalFontSize(extraction.marketingCopy.length, layout.description.width, layout.description.height, false);
+
+    // Create layers with composition-based positioning
     let layerOrder = 0;
 
     // Background layer
@@ -248,6 +263,10 @@ async function processProduct(
         layerType: "background",
         layerOrder: layerOrder++,
         imageUrl: backgroundImageUrl,
+        positionX: layout.background.x,
+        positionY: layout.background.y,
+        width: layout.background.width,
+        height: layout.background.height,
         status: "completed",
       });
     }
@@ -259,6 +278,10 @@ async function processProduct(
         layerType: "product_image",
         layerOrder: layerOrder++,
         imageUrl: processedImageUrl,
+        positionX: layout.productImage.x,
+        positionY: layout.productImage.y,
+        width: layout.productImage.width,
+        height: layout.productImage.height,
         status: "completed",
       });
     }
@@ -270,10 +293,14 @@ async function processProduct(
       layerOrder: layerOrder++,
       textContent: extraction.title,
       fontFamily: "Inter",
-      fontSize: 32,
+      fontSize: titleFontSize,
       fontColor: "#FFFFFF",
       fontWeight: "bold",
-      textAlign: "center",
+      textAlign: "left",
+      positionX: layout.title.x,
+      positionY: layout.title.y,
+      width: layout.title.width,
+      height: layout.title.height,
       status: "completed",
     });
 
@@ -284,10 +311,14 @@ async function processProduct(
       layerOrder: layerOrder++,
       textContent: extraction.marketingCopy,
       fontFamily: "Inter",
-      fontSize: 16,
+      fontSize: descriptionFontSize,
       fontColor: "#FFFFFF",
       fontWeight: "normal",
-      textAlign: "center",
+      textAlign: "left",
+      positionX: layout.description.x,
+      positionY: layout.description.y,
+      width: layout.description.width,
+      height: layout.description.height,
       status: "completed",
     });
 
