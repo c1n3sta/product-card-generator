@@ -49,3 +49,8 @@
 - [x] Update card editor with font selection dropdown
 - [x] Update database schema to store font family per layer
 - [x] Update API endpoints to support font family changes
+
+## Cyrillic Font Support
+- [x] Replace font library with Cyrillic-compatible fonts
+- [x] Update Google Fonts link with Cyrillic subset
+- [x] Test Cyrillic character rendering in card editor

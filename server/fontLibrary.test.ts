@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FONT_LIBRARY, getFontByFamily, getFontsByCategory } from "../shared/fontLibrary";
+import { FONT_LIBRARY, getFontByFamily, getFontsByCategory, getCyrillicFonts } from "../shared/fontLibrary";
 
 describe("fontLibrary", () => {
   describe("FONT_LIBRARY", () => {
@@ -14,8 +14,15 @@ describe("fontLibrary", () => {
         expect(font).toHaveProperty("category");
         expect(font).toHaveProperty("description");
         expect(font).toHaveProperty("weights");
+        expect(font).toHaveProperty("cyrillicSupport");
         expect(font.weights).toBeInstanceOf(Array);
         expect(font.weights.length).toBeGreaterThan(0);
+      });
+    });
+
+    it("all fonts support Cyrillic", () => {
+      FONT_LIBRARY.forEach((font) => {
+        expect(font.cyrillicSupport).toBe(true);
       });
     });
 
@@ -26,21 +33,22 @@ describe("fontLibrary", () => {
       });
     });
 
-    it("includes popular fonts", () => {
+    it("includes popular Cyrillic fonts", () => {
       const fontNames = FONT_LIBRARY.map((f) => f.family);
-      expect(fontNames).toContain("Inter");
       expect(fontNames).toContain("Roboto");
       expect(fontNames).toContain("Montserrat");
-      expect(fontNames).toContain("Poppins");
+      expect(fontNames).toContain("PT Sans");
+      expect(fontNames).toContain("Open Sans");
     });
   });
 
   describe("getFontByFamily", () => {
     it("returns font when family exists", () => {
-      const font = getFontByFamily("Inter");
+      const font = getFontByFamily("Roboto");
       expect(font).toBeDefined();
-      expect(font?.family).toBe("Inter");
-      expect(font?.name).toBe("Inter");
+      expect(font?.family).toBe("Roboto");
+      expect(font?.name).toBe("Roboto");
+      expect(font?.cyrillicSupport).toBe(true);
     });
 
     it("returns undefined when family does not exist", () => {
@@ -49,7 +57,7 @@ describe("fontLibrary", () => {
     });
 
     it("is case-sensitive", () => {
-      const font = getFontByFamily("inter");
+      const font = getFontByFamily("roboto");
       expect(font).toBeUndefined();
     });
   });
@@ -82,6 +90,16 @@ describe("fontLibrary", () => {
     it("returns empty array for invalid category", () => {
       const fonts = getFontsByCategory("invalid" as any);
       expect(fonts).toEqual([]);
+    });
+  });
+
+  describe("getCyrillicFonts", () => {
+    it("returns all Cyrillic-compatible fonts", () => {
+      const fonts = getCyrillicFonts();
+      expect(fonts.length).toBe(FONT_LIBRARY.length); // All fonts support Cyrillic
+      fonts.forEach((font) => {
+        expect(font.cyrillicSupport).toBe(true);
+      });
     });
   });
 });
