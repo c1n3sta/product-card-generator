@@ -25,6 +25,14 @@ import {
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
 import * as fabric from "fabric";
+import { FONT_LIBRARY } from "@shared/fontLibrary";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function CardEditor() {
   const params = useParams<{ cardId: string }>();
@@ -471,6 +479,97 @@ export default function CardEditor() {
                       step={1}
                     />
                   </div>
+
+                  {/* Font selection for text objects */}
+                  {selectedObject.type === "text" || selectedObject.type === "i-text" || selectedObject.type === "textbox" ? (
+                    <>
+                      <div>
+                        <Label>Font Family</Label>
+                        <Select
+                          value={(selectedObject as any).fontFamily || "Inter"}
+                          onValueChange={(value) => {
+                            (selectedObject as any).set({ fontFamily: value });
+                            fabricRef.current?.renderAll();
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select font" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {FONT_LIBRARY.map((font) => (
+                              <SelectItem key={font.family} value={font.family}>
+                                <div className="flex flex-col">
+                                  <span style={{ fontFamily: font.family }}>{font.name}</span>
+                                  <span className="text-xs text-muted-foreground">{font.description}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label>Font Size</Label>
+                        <Input
+                          type="number"
+                          value={Math.round((selectedObject as any).fontSize || 16)}
+                          onChange={(e) => {
+                            (selectedObject as any).set({ fontSize: parseInt(e.target.value) });
+                            fabricRef.current?.renderAll();
+                          }}
+                          min={8}
+                          max={200}
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Font Weight</Label>
+                        <Select
+                          value={String((selectedObject as any).fontWeight || "400")}
+                          onValueChange={(value) => {
+                            (selectedObject as any).set({ fontWeight: value });
+                            fabricRef.current?.renderAll();
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select weight" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="400">Regular (400)</SelectItem>
+                            <SelectItem value="500">Medium (500)</SelectItem>
+                            <SelectItem value="600">Semi Bold (600)</SelectItem>
+                            <SelectItem value="700">Bold (700)</SelectItem>
+                            <SelectItem value="800">Extra Bold (800)</SelectItem>
+                            <SelectItem value="900">Black (900)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label>Text Color</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="color"
+                            value={(selectedObject as any).fill || "#000000"}
+                            onChange={(e) => {
+                              (selectedObject as any).set({ fill: e.target.value });
+                              fabricRef.current?.renderAll();
+                            }}
+                            className="w-16 h-10"
+                          />
+                          <Input
+                            type="text"
+                            value={(selectedObject as any).fill || "#000000"}
+                            onChange={(e) => {
+                              (selectedObject as any).set({ fill: e.target.value });
+                              fabricRef.current?.renderAll();
+                            }}
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
                 </div>
               </>
             ) : (

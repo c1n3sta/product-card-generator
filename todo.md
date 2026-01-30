@@ -42,3 +42,10 @@
 - [x] Redesign card editor as canvas-style interface with toolbars
 - [x] Add regeneration controls for each layer/step in the editor
 - [x] Add visual indicators for composition guidelines in editor
+
+## Font Selection Feature
+- [x] Add Google Fonts integration to client/index.html
+- [x] Create font library with professional font options
+- [x] Update card editor with font selection dropdown
+- [x] Update database schema to store font family per layer
+- [x] Update API endpoints to support font family changes
