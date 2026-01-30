@@ -28,7 +28,7 @@ export const products = mysqlTable("products", {
   name: varchar("name", { length: 500 }).notNull(),
   description: text("description"),
   category: varchar("category", { length: 200 }),
-  price: decimal("price", { precision: 10, scale: 2 }),
+  price: text("price"),
   originalImageUrl: text("originalImageUrl"),
   processedImageUrl: text("processedImageUrl"),
   status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),

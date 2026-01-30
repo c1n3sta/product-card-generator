@@ -29,3 +29,6 @@
 - [x] Processing job management
 - [x] File upload/download endpoints
 
+
+## Bugs
+- [x] Fix database error in CSV import: "Failed query: insert into `products`" - missing column or data type mismatch
