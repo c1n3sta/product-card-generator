@@ -1,17 +1,31 @@
 export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 
 // Generate login URL at runtime so redirect URI reflects the current origin.
+// Mock authentication for standalone application
 export const getLoginUrl = () => {
-  const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
-  const appId = import.meta.env.VITE_APP_ID;
-  const redirectUri = `${window.location.origin}/api/oauth/callback`;
-  const state = btoa(redirectUri);
+  // Return hash to prevent navigation - authentication handled locally
+  return '#';
+};
 
-  const url = new URL(`${oauthPortalUrl}/app-auth`);
-  url.searchParams.set("appId", appId);
-  url.searchParams.set("redirectUri", redirectUri);
-  url.searchParams.set("state", state);
-  url.searchParams.set("type", "signIn");
+// Simple user session management
+export const isAuthenticated = () => {
+  return localStorage.getItem('user_session') !== null;
+};
 
-  return url.toString();
+export const getCurrentUser = () => {
+  const session = localStorage.getItem('user_session');
+  return session ? JSON.parse(session) : null;
+};
+
+export const login = (userData: any) => {
+  localStorage.setItem('user_session', JSON.stringify({
+    id: 'local-user',
+    name: userData.name || 'User',
+    email: userData.email || 'user@example.com',
+    timestamp: Date.now()
+  }));
+};
+
+export const logout = () => {
+  localStorage.removeItem('user_session');
 };
