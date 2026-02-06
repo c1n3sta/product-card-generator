@@ -1,6 +1,6 @@
+// Local authentication context - no Manus SDK required
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
-import { sdk } from "./sdk";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
@@ -11,14 +11,18 @@ export type TrpcContext = {
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
-  let user: User | null = null;
-
-  try {
-    user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
-    // Authentication is optional for public procedures.
-    user = null;
-  }
+  // Simple local authentication - return mock user for development
+  const user: User | null = {
+    id: 1,
+    openId: "local-user",
+    name: "Local User",
+    email: "user@example.com",
+    loginMethod: "local",
+    role: "user",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastSignedIn: new Date(),
+  };
 
   return {
     req: opts.req,
