@@ -1,5 +1,5 @@
-import { eq, and, desc } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { eq, and, desc, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
 import {
   InsertUser,
   users,
@@ -22,13 +22,20 @@ import {
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _connectionAttempted = false;
 
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  if (!_db && process.env.DATABASE_URL && !_connectionAttempted) {
+    _connectionAttempted = true;
     try {
+      console.log("[Database] Attempting to connect...");
       _db = drizzle(process.env.DATABASE_URL);
+      // Test the connection
+      await _db.execute(sql`SELECT 1`);
+      console.log("[Database] Connected successfully");
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      console.error("[Database] Failed to connect:", error);
+      console.error("[Database] Connection string:", process.env.DATABASE_URL);
       _db = null;
     }
   }
@@ -74,10 +81,12 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     if (user.role !== undefined) {
       values.role = user.role;
       updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = "admin";
-      updateSet.role = "admin";
     }
+    // Remove reference to ENV.ownerOpenId since it doesn't exist
+    // } else if (user.openId === ENV.ownerOpenId) {
+    //   values.role = "admin";
+    //   updateSet.role = "admin";
+    // }
 
     if (!values.lastSignedIn) {
       values.lastSignedIn = new Date();
@@ -87,7 +96,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.lastSignedIn = new Date();
     }
 
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
+    await db.insert(users).values(values).onConflictDoUpdate({
+      target: users.openId,
       set: updateSet,
     });
   } catch (error) {
@@ -114,8 +124,8 @@ export async function createProduct(product: InsertProduct): Promise<Product> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.insert(products).values(product);
-  const insertId = result[0].insertId;
+  const result = await db.insert(products).values(product).returning({ id: products.id });
+  const insertId = result[0].id;
   const created = await db.select().from(products).where(eq(products.id, insertId)).limit(1);
   return created[0];
 }
@@ -175,8 +185,8 @@ export async function createProductCard(card: InsertProductCard): Promise<Produc
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.insert(productCards).values(card);
-  const insertId = result[0].insertId;
+  const result = await db.insert(productCards).values(card).returning({ id: productCards.id });
+  const insertId = result[0].id;
   const created = await db.select().from(productCards).where(eq(productCards.id, insertId)).limit(1);
   return created[0];
 }
@@ -226,8 +236,8 @@ export async function createCardLayer(layer: InsertCardLayer): Promise<CardLayer
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.insert(cardLayers).values(layer);
-  const insertId = result[0].insertId;
+  const result = await db.insert(cardLayers).values(layer).returning({ id: cardLayers.id });
+  const insertId = result[0].id;
   const created = await db.select().from(cardLayers).where(eq(cardLayers.id, insertId)).limit(1);
   return created[0];
 }
@@ -259,8 +269,8 @@ export async function createProcessingJob(job: InsertProcessingJob): Promise<Pro
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.insert(processingJobs).values(job);
-  const insertId = result[0].insertId;
+  const result = await db.insert(processingJobs).values(job).returning({ id: processingJobs.id });
+  const insertId = result[0].id;
   const created = await db.select().from(processingJobs).where(eq(processingJobs.id, insertId)).limit(1);
   return created[0];
 }
@@ -293,8 +303,8 @@ export async function createProcessingLog(log: InsertProcessingLog): Promise<Pro
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.insert(processingLogs).values(log);
-  const insertId = result[0].insertId;
+  const result = await db.insert(processingLogs).values(log).returning({ id: processingLogs.id });
+  const insertId = result[0].id;
   const created = await db.select().from(processingLogs).where(eq(processingLogs.id, insertId)).limit(1);
   return created[0];
 }

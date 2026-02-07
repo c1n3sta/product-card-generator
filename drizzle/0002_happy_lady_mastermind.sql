@@ -1,1 +1,0 @@
-ALTER TABLE `products` MODIFY COLUMN `price` text;
